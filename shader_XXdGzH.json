@@ -1,0 +1,81 @@
+{
+ "ver": "0.1",
+ "info": {
+  "id": "XXdGzH",
+  "date": "1716094291",
+  "viewed": 7,
+  "name": "Heat Equation Hayden",
+  "description": "2D Heat Equation solved for with convolution matrix for Laplacian.\nClick to add heat.",
+  "likes": 0,
+  "published": "Public",
+  "usePreview": 0,
+  "tags": [
+   "simple",
+   "interactive",
+   "pde",
+   "heatequation",
+   "partialdifferentialequation"
+  ],
+  "hasliked": 0,
+  "parentid": "",
+  "parentname": ""
+ },
+ "renderpass": [
+  {
+   "inputs": [
+    {
+     "id": "4dXGR8",
+     "filepath": "/media/previz/buffer00.png",
+     "type": "buffer",
+     "channel": 0,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dfGRr",
+     "channel": 0
+    }
+   ],
+   "code": "\n// RENDER IN FANCY COLORS\nvec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )\n{\n    return a + b*cos( 6.28318*(c*t+d) );\n}\n\nvec4 heatColor( in vec4 redFragColor ) {\n    vec4 heatColor;\n    \n    // blue red palette\n    vec3 a = vec3(0.660, 0.560, 0.680);\n    vec3 b = vec3(0.718, 0.438, 0.520);\n    vec3 c = vec3(0.520, 0.800, 0.520);\n    vec3 d = vec3(-0.430, -0.397, -0.083);\n    \n    float redHeat = redFragColor.r;\n    \n    vec3 color = palette(redHeat, a, b, c, d);\n    \n    heatColor = vec4(color, 1.0);\n    \n    return heatColor;\n    \n}\n\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n\n    vec2 uv = fragCoord.xy / iResolution.xy;\n    \n    // get frame data from buffer A\n    \n    vec4 frameData = texture(iChannel0, uv);\n    \n    vec4 redFragColor = vec4(frameData.rgb, 1.0);\n    \n    fragColor = heatColor(redFragColor);\n}",
+   "name": "Image",
+   "description": "",
+   "type": "image"
+  },
+  {
+   "inputs": [
+    {
+     "id": "4dXGR8",
+     "filepath": "/media/previz/buffer00.png",
+     "type": "buffer",
+     "channel": 0,
+     "sampler": {
+      "filter": "linear",
+      "wrap": "clamp",
+      "vflip": "true",
+      "srgb": "false",
+      "internal": "byte"
+     },
+     "published": 1
+    }
+   ],
+   "outputs": [
+    {
+     "id": "4dXGR8",
+     "channel": 0
+    }
+   ],
+   "code": "\n\n\nvec3 convolute(in mat3 filterKernel, in float divisionScalar , in vec2 uvCoord){\n        \n    // Offset for the neighboring pixels\n    float Xoffset = 1.0 / iResolution.x;\n    float Yoffset = 1.0 / iResolution.y;\n    \n    vec3 colorSum = vec3(0.0);\n    \n    // Loop over the kernel\n    for (int i = -1; i <= 1; i++) {\n        for (int j = -1; j <= 1; j++) {\n            vec2 offsetCoord = uvCoord + vec2(float(i) * Xoffset, float(j) * Yoffset);\n            vec3 pixelColorAtCoord = texture(iChannel0, offsetCoord).rgb;\n            float scalar = float(filterKernel[i+1][j+1]);\n            \n            vec3 addend = pixelColorAtCoord*scalar;\n            colorSum += addend;\n            \n        }\n    }\n\n    // Average the sum\n    vec3 color = colorSum / divisionScalar;\n    \n    return color;\n\n}\n\n// CONFIGURABLES\n\n// Laplacian Kernel\n\nmat3 laplacian = mat3(\n    1.0, 4.0, 1.0,\n    4.0, -20.0, 4.0,\n    1.0, 4.0, 1.0\n);\n\nfloat divisionFactor = 6.0;\n\n// Diffusion Factor\n// This can affect the stability of the simulation\n\nfloat lambda = 0.3;\n\n// Initial Condition\n\nvec4 initialize(in vec2 uvCoord) {\n    // aspect ratio\n    uvCoord.x *= iResolution.x / iResolution.y;\n\n    vec4 fragColor;\n    \n    if (uvCoord.y < 0.5) {\n        fragColor = vec4(1.0, 0.0, 0.0, 1.0);\n\n    } else {\n        fragColor = vec4(0.0, 0.0, 0.0, 1.0);\n    }\n            \n    return fragColor;\n}\n\n\nvoid mainImage( out vec4 fragColor, in vec2 fragCoord )\n{\n    vec2 uv = fragCoord.xy / iResolution.xy;\n    \n    // get previousData\n    vec4 previousFrameData = texture(iChannel0,uv);\n    \n    \n    // Initial Condition\n    if(iFrame == 0) {\n        \n        fragColor = initialize(uv);\n        \n        return;\n    }\n    \n    // Find color of next frame\n\n    // set filer kernel here\n    \n    vec3 color = previousFrameData.rgb + lambda*convolute(laplacian, divisionFactor, uv);\n\n    // Add Heat at mouse hold\n\n    float mouseDistance = pow(iMouse.x - fragCoord.x, 2.0) + pow(iMouse.y - fragCoord.y, 2.0);\n\n    if( mouseDistance < 14.0 ) {\n        color = vec3(1.0, 0.0, 0.0);\n    }\n\n    \n    \n    fragColor = vec4(color, 1.0);\n\n}\n\n",
+   "name": "Buffer A",
+   "description": "",
+   "type": "buffer"
+  }
+ ]
+}
